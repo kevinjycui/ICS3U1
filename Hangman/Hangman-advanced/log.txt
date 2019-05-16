@@ -1,0 +1,3 @@
+|=|=| scoreboard |=|=|
+ZACK--> Wins: 1, Losses: 1
+KEVIN--> Wins: 1, Losses: 2
