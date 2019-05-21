@@ -185,7 +185,15 @@ class Shape(Cluster): # Falling block formation object                     #
 
     def drawImage(self): # Draw images over all rects in list
         for block in self.Blocks:
-            screen.blit(my_face, (block.x, block.y))                       #
+            screen.blit(my_face, (block.x, block.y))
+
+    def getCollideList(self, otherList):
+        for o in otherList:
+            for b in self.Blocks:
+                if b.Rect.colliderect(o.Rect):
+                    return True
+        return False
+        
 #--------------------------------------------------------------------------#
 class Wall(Cluster): # Border formation (wall, floor, or ceiling)          #
     def __init__(self, colour, x, y, outline, orientation, length): # Initialization of attributes
@@ -335,7 +343,6 @@ while not exit_flag:
         currClr, nextClr = clrGenerate(currClr, nextClr, clrSelect) # Generate colours
         currShape, nextShape = createShape(currShapeGraph, nextShapeGraph, clrSelect, currClr, nextClr) # Create shape
         shadowShape = Shape(currClr, currShape.x, currShape.y, 4, currShapeGraph) # Create new shadow
-
     
     timeCount += 1 # Increase frame count
 
@@ -369,11 +376,7 @@ while not exit_flag:
             if event.key == pygame.K_UP: # Rotate block
                 currShape.rotate()
                 currShape.construct()
-                for block in currShape.Blocks: # Check for obstructions
-                    for obs in obstacles+lWalls.Blocks+rWalls.Blocks:
-                        if block.Rect.colliderect(pygame.Rect(obs.x, obs.y, UNIT, UNIT)):
-                            collided = True
-                if collided:
+                if currShape.getCollideList(lWalls.Blocks+rWalls.Blocks+obstacles):
                     currShape.rotateBackwards()
                     currShape.construct()
             if event.key == pygame.K_SPACE and timeCount%(20//difficulty)!=0: # Move down to bottom
@@ -381,8 +384,16 @@ while not exit_flag:
                 currShape.y = shadowShape.y
             if event.key == pygame.K_LEFT: # Move to the left
                 currShape.moveCluster(-1, 0)
+                currShape.construct()
+                if currShape.getCollideList(lWalls.Blocks+rWalls.Blocks+obstacles):
+                    currShape.moveCluster(1, 0)
+                    currShape.construct()
             if event.key == pygame.K_RIGHT: # Move to the right
                 currShape.moveCluster(1, 0)
+                currShape.construct()
+                if currShape.getCollideList(lWalls.Blocks+rWalls.Blocks+obstacles):
+                    currShape.moveCluster(-1, 0)
+                    currShape.construct()
         if event.type == pygame.QUIT: # Exit game
             exit_flag = True
 
@@ -399,7 +410,6 @@ while not exit_flag:
                         currShape.construct()
                 obstacles += currShape.Blocks
                 isMoved = True
-        impeded = False
         for obs in obstacles: # Check collision with obstacles
             if block.Rect.colliderect(pygame.Rect(obs.x, obs.y-UNIT, UNIT, UNIT)) and not isMoved:
                 currShapeGraph = ''
@@ -407,23 +417,15 @@ while not exit_flag:
                     currShape.moveCluster(0, -1)
                 for b in currShape.Blocks:
                     rowCheck[b.y//UNIT-4]+=1
-                if b.y == 4*UNIT:
-                    exit_flag = True
-                    outro_flag = True
-                    currShapeGraph = '0'
-                obstacles += currShape.Blocks
+                    for cei in ceilings.Blocks:
+                        if b.Rect.colliderect(pygame.Rect(cei.x, cei.y+UNIT, UNIT, UNIT)):
+                            exit_flag = True
+                            outro_flag = True
+                            currShapeGraph = '0'
+                if not outro_flag:
+                    obstacles += currShape.Blocks
                 isMoved = True
-        for l in lWalls.Blocks: # Check collision with left wall
-            while block.Rect.colliderect(l.Rect) and not isMoved:
-                currShape.moveCluster(1, 0)
-                currShape.construct()
-                isMoved = True
-        for r in rWalls.Blocks: # Check collision with right wall
-            while block.Rect.colliderect(r.Rect) and not isMoved:
-                currShape.moveCluster(-1, 0)
-                currShape.construct()
-                isMoved = True
-
+                
     count = 0
 
     for row in range(len(rowCheck)): # Check for filled rows
@@ -468,6 +470,9 @@ while not exit_flag:
     drawWindow(lWalls.Blocks+rWalls.Blocks, floors.Blocks, ceilings.Blocks, obstacles, currShape, nextShape, shadowShape, score, difficulty) # Draw window
     clock.tick(60) # Set frames per second to 60
     pygame.display.update() # Update display
+
+if outro_flag:
+    time.sleep(2)
 
 while outro_flag: # Outro screen
     events = pygame.event.get() # Check events
